@@ -87,7 +87,7 @@ public class Heap
 
         if (min.node.child == null) {
             HeapItem minNext = this.min.node.next.item;
-            HeapItem minPrev = this.min.node.next.item;
+            HeapItem minPrev = this.min.node.prev.item;
 
             minNext.node.prev = minPrev.node;
             minPrev.node.next = minNext.node;
@@ -98,7 +98,7 @@ public class Heap
             HeapItem minSonNext = this.min.node.child.next.item;
             HeapItem minNext = this.min.node.next.item;
             HeapItem minSon = this.min.node.child.item;
-            HeapItem minPrev = this.min.node.next.item;
+            HeapItem minPrev = this.min.node.prev.item;
 
             minSonNext.node.prev =  minPrev.node;
             minPrev.node.next = minSonNext.node;
@@ -112,13 +112,13 @@ public class Heap
         size --;
         numOfTrees += min.node.rank -1;
 
-        boolean notfirst = false;
+        boolean first = true;
         HeapNode c = min.node;
         HeapItem start = min;
 
-        while (notfirst && c != start.node) {
+        while (first || c != start.node) {
 
-            notfirst = true;
+            first = false;
             c.parent = null;
             
             if (c.marked){
@@ -177,7 +177,7 @@ public class Heap
                     x.node.marked = false;
                     markedNodes --;
                 }
-                
+
                 while (temp.marked) {
                     
                     x = temp.item; 
@@ -257,10 +257,10 @@ public class Heap
 
         int maxDegree = (size > 0) ? (int) (Math.floor(Math.log(size) / Math.log(2))) + 1 : 1;
         HeapNode[] arr = new HeapNode[maxDegree*2];
-        boolean notfirst = false;
+        boolean first = true;
         HeapNode c = min.node;
-        while (notfirst && c != min.node) {
-            notfirst = true;
+        while (first || c != min.node) {
+            first = false;
 
             while (arr[c.rank] != null) {
                 
