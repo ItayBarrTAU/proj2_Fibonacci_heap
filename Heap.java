@@ -97,17 +97,14 @@ public class Heap
             min = minNext;
         }else{
             if (min.node.next != min.node){
-
-                HeapItem minSonNext = this.min.node.child.next.item;
                 HeapItem minNext = this.min.node.next.item;
-                HeapItem minSon = this.min.node.child.item;
                 HeapItem minPrev = this.min.node.prev.item;
 
-                minSonNext.node.prev =  minPrev.node;
-                minPrev.node.next = minSonNext.node;
-                
-                minNext.node.prev = minSon.node;
-                minSon.node.next = minNext.node;
+                minNext.node.prev = minPrev.node;
+                minPrev.node.next = minNext.node;
+
+                concatenate(minNext.node, this.min.node.child);
+
             }
             min = min.node.child.item;
         }
