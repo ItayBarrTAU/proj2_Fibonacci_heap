@@ -72,11 +72,13 @@ public class Heap
      * Delete the minimal item.
      *
      */
+
+
     public void deleteMin()
     {
         
         if (size == 0){
-            throw new RuntimeException("nofing to delete");
+            throw new RuntimeException("nothing to delete");
         }
         if (size == 1){
             size --;
@@ -91,21 +93,22 @@ public class Heap
 
             minNext.node.prev = minPrev.node;
             minPrev.node.next = minNext.node;
+
             min = minNext;
-
         }else{
-        if (min.node.next != min.node){
-            HeapItem minSonNext = this.min.node.child.next.item;
-            HeapItem minNext = this.min.node.next.item;
-            HeapItem minSon = this.min.node.child.item;
-            HeapItem minPrev = this.min.node.prev.item;
+            if (min.node.next != min.node){
 
-            minSonNext.node.prev =  minPrev.node;
-            minPrev.node.next = minSonNext.node;
-            
-            minNext.node.prev = minSon.node;
-            minSon.node.next = minNext.node;
-        } 
+                HeapItem minSonNext = this.min.node.child.next.item;
+                HeapItem minNext = this.min.node.next.item;
+                HeapItem minSon = this.min.node.child.item;
+                HeapItem minPrev = this.min.node.prev.item;
+
+                minSonNext.node.prev =  minPrev.node;
+                minPrev.node.next = minSonNext.node;
+                
+                minNext.node.prev = minSon.node;
+                minSon.node.next = minNext.node;
+            }
             min = min.node.child.item;
         }
 
@@ -125,7 +128,7 @@ public class Heap
                 c.marked = false;
                 markedNodes --;
             }
-            if (min.key >c.item.key){
+            if (min.key > c.item.key){
                 min = c.item;
             }
             c = c.next;
@@ -163,6 +166,11 @@ public class Heap
                 }
                 x.node.parent.rank --;
 
+                if (x.node.marked){
+                    x.node.marked = false;
+                    markedNodes --;
+                }
+
                 x.node.parent = null;
 
                 min.node.next.prev = x.node;
@@ -173,9 +181,12 @@ public class Heap
 
                 cuts ++;
                 numOfTrees ++;
-                if (x.node.marked){
-                    x.node.marked = false;
-                    markedNodes --;
+                
+                if (!lazyMelds) {
+                    if (x.key < min.key){
+                        min = x;
+                    }
+                    successiveLinking();
                 }
 
                 while (temp.marked) {
@@ -207,7 +218,13 @@ public class Heap
                     cuts ++;
                     numOfTrees ++;
 
-                    
+                    if (!lazyMelds) {
+                        if (x.key < min.key){
+                            min = x;
+                        }
+                        successiveLinking();
+                    }
+
                 }
 
                 if(temp.parent !=null){
@@ -259,21 +276,38 @@ public class Heap
         HeapNode[] arr = new HeapNode[maxDegree*2];
         boolean first = true;
         HeapNode c = min.node;
+        HeapNode next;
         while (first || c != min.node) {
             first = false;
-
+            next = c.next;
             while (arr[c.rank] != null) {
-                
-                c.MakeSon(arr[c.rank]);
+                if (arr[c.rank].item.key < c.item.key){
+                    HeapNode temp = arr[c.rank];
+                    temp.MakeSon(c);
+                    c = temp;
+                }
+                else{
+                    c.MakeSon(arr[c.rank]);
+                }
                 links ++;
                 numOfTrees --;
                 arr[c.rank-1] = null;
             }
 
             arr[c.rank] = c;
-            c = c.next;
+            c = next;
         }
 
+    }
+
+    private void concatenate(HeapNode n1, HeapNode n2) {
+        HeapNode n1Next = n1.next;
+        HeapNode n2Prev = n2.prev;
+
+        n1.next = n2;
+        n2.prev = n1;
+        n1Next.prev = n2Prev;
+        n2Prev.next = n1Next;
     }
 
     /**
@@ -308,16 +342,8 @@ public class Heap
         numOfTrees += heap2.numOfTrees;
         size += heap2.size;
 
-
-        HeapItem heap2next = heap2.min.node.next.item;
-        HeapItem heap1next = this.min.node.next.item;
-
-        heap2next.node.prev =  this.min.node;
-        this.min.node.next = heap2next.node;
+        concatenate(min.node,heap2.min.node);
         
-        heap1next.node.prev =  heap2.min.node;
-        heap2.min.node.next = heap1next.node;
-
         if (heap2.min.key < this.min.key)
         {
             this.min = heap2.min;
@@ -395,7 +421,58 @@ public class Heap
         return heapify; 
     }
     
-    
+    /**
+     * פונקציית עזר להדפסת מבנה הערימה.
+     * עוברת על כל השורשים ומדפיסה את העצים שתחתיהם.
+     */
+    public void printHeap() {
+        System.out.println("--- Heap Structure ---");
+        if (min == null) {
+            System.out.println("Empty Heap");
+            return;
+        }
+
+        HeapNode curr = min.node;
+        int treeCount = 0;
+        do {
+            System.out.println("Tree " + (++treeCount) + ":");
+            printNode(curr, "  ");
+            curr = curr.next;
+            // הגנה מפני לולאה אינסופית אם הרשימה נשברה
+            if (treeCount > numOfTrees + 10) {
+                System.out.println("!!! Error: Potential infinite loop in root list !!!");
+                break;
+            }
+        } while (curr != min.node && curr != null);
+        System.out.println("-----------------------");
+    }
+
+    private void printNode(HeapNode node, String indent) {
+        if (node == null) return;
+
+        System.out.print(indent + "Key: " + node.item.key);
+        if (node.marked) System.out.print(" (M)"); // סימון אם הצומת מסומן
+        System.out.println(" [Rank: " + node.rank + "]");
+
+        if (node.child != null) {
+            HeapNode currChild = node.child;
+            int childSafetyCounter = 0;
+            do {
+                // אם הבן מצביע על האבא בתור הבן שלו - כאן תראה את הבאג
+                if (currChild == node) {
+                    System.out.println(indent + "  !!! ERROR: Node is its own child !!!");
+                    return;
+                }
+                printNode(currChild, indent + "    ");
+                currChild = currChild.next;
+                childSafetyCounter++;
+                if (childSafetyCounter > node.rank + 5) {
+                    System.out.println(indent + "  !!! Error: Potential infinite loop in children !!!");
+                    break;
+                }
+            } while (currChild != node.child && currChild != null);
+        }
+}
     /**
      * Class implementing a node in a Heap.
      *  
@@ -443,7 +520,13 @@ public class Heap
             if (other.parent != null) {
                 throw new RuntimeException("itay make bad code");
             }
-
+            if (other == this) {
+                throw new RuntimeException("how they are the same");
+            }
+            if (this.item.key > other.item.key){
+               throw new RuntimeException("dont make bad staff");
+            }
+            
             HeapNode temp = other.prev;
             other.next.prev = other.prev;
             temp.next = other.next;
@@ -464,9 +547,7 @@ public class Heap
             other.parent = this;
             this.rank ++;
 
-            if (this.item.key > other.item.key){
-                this.SwapItem(other);
-            }
+            
             return null;
         }
     }
