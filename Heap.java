@@ -74,9 +74,68 @@ public class Heap
      */
     public void deleteMin()
     {
+        
+        if (size == 0){
+            throw new RuntimeException("nofing to delete");
+        }
+        if (size == 1){
+            size --;
+            numOfTrees --;
+            min = null;
+            return;
+        }
 
+        if (min.node.child == null) {
+            HeapItem minNext = this.min.node.next.item;
+            HeapItem minPrev = this.min.node.next.item;
 
-        return; // should be replaced by student code
+            minNext.node.prev = minPrev.node;
+            minPrev.node.next = minNext.node;
+            min = minNext;
+
+        }else{
+        if (min.node.next != min.node){
+            HeapItem minSonNext = this.min.node.child.next.item;
+            HeapItem minNext = this.min.node.next.item;
+            HeapItem minSon = this.min.node.child.item;
+            HeapItem minPrev = this.min.node.next.item;
+
+            minSonNext.node.prev =  minPrev.node;
+            minPrev.node.next = minSonNext.node;
+            
+            minNext.node.prev = minSon.node;
+            minSon.node.next = minNext.node;
+        } 
+            min = min.node.child.item;
+        }
+
+        size --;
+        numOfTrees += min.node.rank -1;
+
+        boolean notfirst = false;
+        HeapNode c = min.node;
+        HeapItem start = min;
+
+        while (notfirst && c != start.node) {
+
+            notfirst = true;
+            c.parent = null;
+            
+            if (c.marked){
+                c.marked = false;
+                markedNodes --;
+            }
+            if (min.key >c.item.key){
+                min = c.item;
+            }
+            c = c.next;
+                  
+        }
+
+        successiveLinking();
+            
+        return;
+        
     }
 
     /**
@@ -88,7 +147,84 @@ public class Heap
      */
     public void decreaseKey(HeapItem x, int diff) 
     {    
-        return; // should be replaced by student code
+        x.key -= diff;
+        if(lazyDecreaseKeys)
+        {
+            if (x.node.parent != null && x.key < x.node.parent.item.key){
+                HeapNode temp = x.node.parent;
+
+                if (x.node.parent.rank == 1){
+                    x.node.parent.child = null;
+                }
+                else{
+                    x.node.prev.next = x.node.next;
+                    x.node.next.prev = x.node.prev;
+                    x.node.parent.child = x.node.next;
+                }
+                x.node.parent.rank --;
+
+                x.node.parent = null;
+
+                min.node.next.prev = x.node;
+                x.node.next = min.node.next;
+
+                min.node.next = x.node;
+                x.node.prev = min.node;
+
+                cuts ++;
+                numOfTrees ++;
+                if (x.node.marked){
+                    x.node.marked = false;
+                    markedNodes --;
+                }
+                
+                while (temp.marked) {
+                    
+                    x = temp.item; 
+                    temp = x.node.parent;
+                    x.node.marked = false;
+                    markedNodes --;
+
+
+                    if (x.node.parent.rank == 1){
+                    x.node.parent.child = null;
+                    }
+                    else{
+                        x.node.prev.next = x.node.next;
+                        x.node.next.prev = x.node.prev;
+                        x.node.parent.child = x.node.next;
+                    }
+                    x.node.parent.rank --;
+
+                    x.node.parent = null;
+
+                    min.node.next.prev = x.node;
+                    x.node.next = min.node.next;
+
+                    min.node.next = x.node;
+                    x.node.prev = min.node;
+
+                    cuts ++;
+                    numOfTrees ++;
+
+                    
+                }
+
+                if(temp.parent !=null){
+                    temp.marked = true;
+                    markedNodes ++;
+                }
+
+            }
+            
+        }else {
+            heapify(x);
+        }
+
+        if (x.key < min.key){
+            min = x;
+        }
+        return;
     }
 
     /**
@@ -98,15 +234,18 @@ public class Heap
      */
     public void delete(HeapItem x) 
     {    
-        return; // should be replaced by student code
+        decreaseKey(x, x.key+1); // make x key -1 so it is the min. 
+        deleteMin();
+        return; 
     }
 
 
     public void heapify(HeapItem item)
     {
         
-        while (item.node.parent != null && item.key > item.node.parent.item.key) {
+        while (item.node.parent != null && item.key < item.node.parent.item.key) {
             item.SwapNode(item.node.parent.item);
+            heapify++;
         }
     }
  
@@ -124,7 +263,7 @@ public class Heap
             notfirst = true;
 
             while (arr[c.rank] != null) {
-                heapify ++;
+                
                 c.MakeSon(arr[c.rank]);
                 links ++;
                 numOfTrees --;
@@ -169,9 +308,24 @@ public class Heap
         numOfTrees += heap2.numOfTrees;
         size += heap2.size;
 
-        heap2.min. = 
-        min
 
+        HeapItem heap2next = heap2.min.node.next.item;
+        HeapItem heap1next = this.min.node.next.item;
+
+        heap2next.node.prev =  this.min.node;
+        this.min.node.next = heap2next.node;
+        
+        heap1next.node.prev =  heap2.min.node;
+        heap2.min.node.next = heap1next.node;
+
+        if (heap2.min.key < this.min.key)
+        {
+            this.min = heap2.min;
+        }
+
+        if (!lazyMelds) {
+            successiveLinking();           
+        }
 
     }
     
@@ -183,7 +337,7 @@ public class Heap
      */
     public int size()
     {
-        return size; // should be replaced by student code
+        return size; 
     }
 
 
@@ -194,7 +348,7 @@ public class Heap
      */
     public int numTrees()
     {
-        return numOfTrees; // should be replaced by student code
+        return numOfTrees; 
     }
     
     
@@ -205,7 +359,7 @@ public class Heap
      */
     public int numMarkedNodes()
     {
-        return markedNodes; // should be replaced by student code
+        return markedNodes; 
     }
     
     
@@ -216,7 +370,7 @@ public class Heap
      */
     public int totalLinks()
     {
-        return links; // should be replaced by student code
+        return links; 
     }
     
     
@@ -227,7 +381,7 @@ public class Heap
      */
     public int totalCuts()
     {
-        return cuts; // should be replaced by student code
+        return cuts; 
     }
     
 
@@ -238,7 +392,7 @@ public class Heap
      */
     public int totalHeapifyCosts()
     {
-        return heapify; // should be replaced by student code
+        return heapify; 
     }
     
     
@@ -340,8 +494,6 @@ public class Heap
             this.info = info;
         }
 
-        public HeapItem() {
-        }
 
         public Void SwapNode(HeapItem other) {
             HeapNode tempInfo = this.node;
