@@ -73,6 +73,8 @@ public class Heap
      *
      */
 
+    
+
 
     public void deleteMin()
     {
@@ -87,53 +89,52 @@ public class Heap
             return;
         }
 
-        if (min.node.child == null) {
-            HeapItem minNext = this.min.node.next.item;
-            HeapItem minPrev = this.min.node.prev.item;
 
-            minNext.node.prev = minPrev.node;
-            minPrev.node.next = minNext.node;
+        if (min.node.child != null) {
+            HeapNode child = min.node.child;
+            HeapNode curr = child;
+            // ניתוק הקשר לאבא ואיפוס סימון
+            do {
+                curr.parent = null;
+                if (curr.marked) {
+                    curr.marked = false;
+                    markedNodes--;
+                }
+                curr = curr.next;
+                
+            } while(curr != child);
+            numOfTrees += min.node.rank -1;
+            concatenate(min.node, child);
 
-            min = minNext;
-        }else{
-            if (min.node.next != min.node){
-                HeapItem minNext = this.min.node.next.item;
-                HeapItem minPrev = this.min.node.prev.item;
-
-                minNext.node.prev = minPrev.node;
-                minPrev.node.next = minNext.node;
-
-                concatenate(minNext.node, this.min.node.child);
-
-            }
-            min = min.node.child.item;
         }
 
-        size --;
-        numOfTrees += min.node.rank -1;
+        // 2. הסרת צומת המינימום מהרשימה
+        HeapNode nextNode = min.node.next;
+        min.node.prev.next = min.node.next;
+        min.node.next.prev = min.node.prev;
 
-        boolean first = true;
+        if (min.node == nextNode) {
+            min = null;
+        } else {
+            min = nextNode.item;
+    
+        }
+
+        size--;
+
+        
+
         HeapNode c = min.node;
         HeapItem start = min;
+        do{
 
-        while (first || c != start.node) {
-
-            first = false;
-            c.parent = null;
-            
-            if (c.marked){
-                c.marked = false;
-                markedNodes --;
-            }
             if (min.key > c.item.key){
                 min = c.item;
             }
             c = c.next;
-                  
-        }
-
+        }while ( c != start.node);
+        
         successiveLinking();
-            
         return;
         
     }
@@ -149,85 +150,17 @@ public class Heap
     {    
         x.key -= diff;
         if(lazyDecreaseKeys)
-        {
-            if (x.node.parent != null && x.key < x.node.parent.item.key){
-                HeapNode temp = x.node.parent;
-
-                if (x.node.parent.rank == 1){
-                    x.node.parent.child = null;
-                }
-                else{
-                    x.node.prev.next = x.node.next;
-                    x.node.next.prev = x.node.prev;
-                    x.node.parent.child = x.node.next;
-                }
-                x.node.parent.rank --;
-
-                if (x.node.marked){
-                    x.node.marked = false;
-                    markedNodes --;
-                }
-
-                x.node.parent = null;
-
-                min.node.next.prev = x.node;
-                x.node.next = min.node.next;
-
-                min.node.next = x.node;
-                x.node.prev = min.node;
-
-                cuts ++;
-                numOfTrees ++;
-                
+        {   
+            HeapNode parent = x.node.parent;
+            if (parent != null && x.key < parent.item.key){
+                cut(x.node, parent);
                 if (!lazyMelds) {
                     if (x.key < min.key){
                         min = x;
                     }
                     successiveLinking();
                 }
-
-                while (temp.marked) {
-                    
-                    x = temp.item; 
-                    temp = x.node.parent;
-                    x.node.marked = false;
-                    markedNodes --;
-
-
-                    if (x.node.parent.rank == 1){
-                    x.node.parent.child = null;
-                    }
-                    else{
-                        x.node.prev.next = x.node.next;
-                        x.node.next.prev = x.node.prev;
-                        x.node.parent.child = x.node.next;
-                    }
-                    x.node.parent.rank --;
-
-                    x.node.parent = null;
-
-                    min.node.next.prev = x.node;
-                    x.node.next = min.node.next;
-
-                    min.node.next = x.node;
-                    x.node.prev = min.node;
-
-                    cuts ++;
-                    numOfTrees ++;
-
-                    if (!lazyMelds) {
-                        if (x.key < min.key){
-                            min = x;
-                        }
-                        successiveLinking();
-                    }
-
-                }
-
-                if(temp.parent !=null){
-                    temp.marked = true;
-                    markedNodes ++;
-                }
+                cascadingCut(parent);
 
             }
             
@@ -241,6 +174,51 @@ public class Heap
         return;
     }
 
+    private void cut(HeapNode x, HeapNode y) {
+        // הסרת x מרשימת הילדים של y
+        if (x.next == x) {
+            y.child = null;
+        } else {
+            x.next.prev = x.prev;
+            x.prev.next = x.next;
+            if (y.child == x) {
+                y.child = x.next;
+            }
+        }
+        y.rank--;
+
+        // הוספת x לרשימת השורשים
+        x.parent = null;
+        if (x.marked){
+            x.marked = false;
+            markedNodes --;
+        }
+        
+        
+        min.node.next.prev = x;
+        x.next = min.node.next;
+        min.node.next = x;
+        x.prev = min.node;
+        
+        cuts++;
+        numOfTrees++;
+    }
+
+    private void cascadingCut(HeapNode y) {
+        HeapNode z = y.parent;
+        if (z != null) {
+            if (!y.marked) {
+                y.marked = true;
+                markedNodes++;
+            } else {
+                cut(y, z);
+                 if (!lazyMelds) {
+                    successiveLinking();
+                }
+                cascadingCut(z);
+            }
+        }
+    }
     /**
      * 
      * Delete the x from the heap.
@@ -262,6 +240,18 @@ public class Heap
             heapify++;
         }
     }
+    private void link(HeapNode y, HeapNode x) {
+        y.parent = x;
+        if (x.child == null) {
+            x.child = y;
+            y.next = y;
+            y.prev = y;
+        } else {
+            concatenate(x.child, y);
+        }
+        x.rank++;
+        links++;
+    }
  
     public void successiveLinking()
     {
@@ -271,28 +261,56 @@ public class Heap
 
         int maxDegree = (size > 0) ? (int) (Math.floor(Math.log(size) / Math.log(2))) + 1 : 1;
         HeapNode[] arr = new HeapNode[maxDegree*2];
-        boolean first = true;
+        boolean done = true;
+        HeapNode last = min.node.prev;
         HeapNode c = min.node;
-        HeapNode next;
-        while (first || c != min.node) {
-            first = false;
-            next = c.next;
-            while (arr[c.rank] != null) {
-                if (arr[c.rank].item.key < c.item.key){
-                    HeapNode temp = arr[c.rank];
-                    temp.MakeSon(c);
-                    c = temp;
+        
+        while (done) {
+            if (c == last) {
+                done = false;
+            }
+            HeapNode next = c.next;
+
+            c.next = c;
+            c.prev = c;
+            HeapNode x = c;
+            int d = x.rank;
+
+            // תהליך האיחוד (Linking)
+            while (arr[d] != null) {
+                HeapNode y = arr[d];
+                if (x.item.key > y.item.key) {
+                    HeapNode temp = x;
+                    x = y;
+                    y = temp;
                 }
-                else{
-                    c.MakeSon(arr[c.rank]);
-                }
-                links ++;
-                numOfTrees --;
-                arr[c.rank-1] = null;
+                link(y, x); // y הופך לבן של x
+                arr[d] = null;
+                d++;
             }
 
-            arr[c.rank] = c;
+            arr[d] = x;
             c = next;
+        }
+
+
+        min = null;
+        numOfTrees = 0;
+        for (HeapNode node : arr) {
+            if (node != null) {
+                if (min == null) {
+                    min = node.item;
+                    node.next = node;
+                    node.prev = node;
+                } else {
+                    // שימוש ב-concatenate המקורי שלך לחיבור צמתים בודדים
+                    concatenate(min.node, node);
+                    if (node.item.key < min.key) {
+                        min = node.item;
+                    }
+                }
+                numOfTrees++;
+            }
         }
 
     }

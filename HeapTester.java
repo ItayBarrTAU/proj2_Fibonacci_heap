@@ -1,7 +1,7 @@
 import java.util.*;
 
 public class HeapTester {
-
+    private static List<String> operationLog = new ArrayList<>();
     // מימוש מד התקדמות בסגנון TQDM
     public static void printProgressBar(int current, int total) {
         int percent = (int) ((double) current / total * 100);
@@ -17,9 +17,15 @@ public class HeapTester {
     }
 
     public static void main(String[] args) {
+
+        Heap heap = new Heap(true, true);
+        heap.insert(325,"0");
+        heap.deleteMin();
+        
+
         testBinomialWithCuts();
         testMassiveHeapifyUp();
-        testRandomStressWithProgress();
+        runStressTestWithLog(100000);
     }
 
     /**
@@ -89,39 +95,83 @@ public class HeapTester {
     /**
      * בדיקה 3: ריצה אקראית מאסיבית עם מד התקדמות.
      */
-    public static void testRandomStressWithProgress() {
-        System.out.println("--- Test 3: 20,000 Random Operations Stress Test ---");
-        Heap heap = new Heap(true, true); 
+    public static void runStressTestWithLog(int numOps) {
+        Heap heap = new Heap(true, true);
         Random rand = new Random();
-        int iterations = 20000;
-        List<Heap.HeapItem> activeItems = new ArrayList<>();
+        Map<Integer, Heap.HeapItem> itemsMap = new HashMap<>(); // לשמירת אובייקטים ל-decreaseKey
+        int idCounter = 0;
 
-        for (int i = 0; i < iterations; i++) {
-            int op = rand.nextInt(10);
-            
-            if (op < 4) { // 40% Insert
-                activeItems.add(heap.insert(rand.nextInt(100000) + 100, "data"));
-            } 
-            else if (op < 6 && heap.size() > 0) { // 20% deleteMin
-                heap.deleteMin();
-            } 
-            else if (!activeItems.isEmpty()) { // 40% decreaseKey
-                Heap.HeapItem it = activeItems.get(rand.nextInt(activeItems.size()));
-                // המשתמש דואג להקטנה חוקית (תמיד משאיר לפחות 1)
-                if (it.key > 10) {
-                    heap.decreaseKey(it, rand.nextInt(5));
+        System.out.println("Starting Stress Test...");
+
+        try {
+            for (int i = 0; i < numOps; i++) {
+                int action = rand.nextInt(4); // 0: Insert, 1: DeleteMin, 2: DecreaseKey
+                
+                if (action == 0 || action == 3) {
+                    int key = rand.nextInt(1000) + 1;
+                    Heap.HeapItem item = heap.insert(key, "val" + idCounter);
+                    itemsMap.put(idCounter, item);
+                    operationLog.add("Insert(key=" + key + ", id=" + idCounter + ")");
+                    idCounter++;
+                } 
+                else if (action == 1 && heap.size() > 0) {
+                    operationLog.add("DeleteMin()");
+                    int idToRemove = -1;
+                    for (Map.Entry<Integer, Heap.HeapItem> entry : itemsMap.entrySet()) {
+                        if (entry.getValue() == heap.findMin()) {
+                            idToRemove = entry.getKey();
+                            break;
+                        }
+                    }
+                    if (idToRemove != -1) itemsMap.remove(idToRemove);
+                    heap.deleteMin();
+                } 
+                else if (action == 2 && !itemsMap.isEmpty()) {
+                    int id = rand.nextInt(idCounter);
+                    if (itemsMap.containsKey(id)) {
+                        Heap.HeapItem it = itemsMap.get(id);
+                        int diff = rand.nextInt(it.key / 2 + 1);
+                        operationLog.add("DecreaseKey(id=" + id + ", oldKey=" + it.key + ", diff=" + diff + ")");
+                        heap.decreaseKey(it, diff);
+                    }
+                }
+
+                // בדיקה פנימית בכל איטרציה
+                if (!validateHeapStructure(heap)) {
+                    throw new RuntimeException("Heap Validation Failed!");
                 }
             }
+            System.out.println("Success! All operations passed.");
 
-            if (i % 200 == 0) printProgressBar(i, iterations);
+        } catch (Exception e) {
+            System.err.println("\n--- BUG DETECTED ---");
+            System.err.println("Reason: " + e.getMessage());
+            System.err.println("--- Operation Dictionary (Reproduce Steps) ---");
+            for (String op : operationLog) {
+                System.err.println(op);
+            }
         }
-        printProgressBar(iterations, iterations);
+    }
 
-        System.out.println("Final Heap Status:");
-        System.out.println("- Size: " + heap.size());
-        System.out.println("- Trees: " + heap.numTrees());
-        System.out.println("- Total Links: " + heap.totalLinks());
-        System.out.println("- Total Cuts: " + heap.totalCuts());
-        System.out.println("SUCCESS: Stress test passed without crashing.");
+    private static boolean validateHeapStructure(Heap h) {
+        if (h.min == null) return h.size() == 0;
+        
+        Heap.HeapNode start = h.min.node;
+        Heap.HeapNode curr = start;
+        
+        // בדיקת רשימת השורשים
+        do {
+            if (curr.item.key < h.min.key) {
+                System.err.println("Violation: Found root " + curr.item.key + " smaller than min " + h.min.key);
+                return false;
+            }
+            if (curr.parent != null) {
+                System.err.println("Violation: Root node has a parent!");
+                return false;
+            }
+            curr = curr.next;
+        } while (curr != start);
+        
+        return true;
     }
 }
